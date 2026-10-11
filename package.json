@@ -5,6 +5,6 @@
   "description": "YudaMusic: frontend satu file (index.html) + backend kecil untuk ytmusic.js",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=18" },
+  "engines": { "node": ">=24" },
   "dependencies": { "axios": "^1.7.0" }
 }
