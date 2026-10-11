@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "handler.js", "use": "@vercel/node", "config": { "includeFiles": ["index.html"] } }
+  ],
+  "routes": [{ "src": "/(.*)", "dest": "handler.js" }]
+}
