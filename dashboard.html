@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>YudaMusic Dashboard</title>
+<style>
+:root{
+  --c-yellow:#f8e641; --c-blue:#62a8ff; --c-green:#4fdc86; --c-purple:#b48cff; --c-pink:#ff7ac0;
+  --bg:#f7f0df; --surface:#fffaf0; --ink:#171717; --on-accent:#171717; --inv:#171717; --inv-fg:#f7f0df; --field:#fff;
+  --accent:var(--c-yellow); --accent-soft:#fff1a0; --blue:#3b5bff;
+  --ok:#4fdc86; --warn:#f8e641; --bad:#ff5a4e;
+  --border:3px solid var(--ink); --shadow:5px 5px 0 var(--ink); --shadow-sm:3px 3px 0 var(--ink); --r:6px;
+  --font-display:"Arial Black","Segoe UI Black","Helvetica Neue",Impact,system-ui,sans-serif;
+  --font:"Segoe UI","Helvetica Neue",Arial,system-ui,sans-serif;
+}
+:root[data-accent="blue"]{--accent:var(--c-blue);--accent-soft:#d3e6ff}
+:root[data-accent="green"]{--accent:var(--c-green);--accent-soft:#cdf5dc}
+:root[data-accent="purple"]{--accent:var(--c-purple);--accent-soft:#e3d6ff}
+:root[data-accent="pink"]{--accent:var(--c-pink);--accent-soft:#ffd3ea}
+:root[data-mode="dark"]{--bg:#121212;--surface:#1d1d1d;--ink:#f4eedd;--inv:#0a0a0a;--inv-fg:#f4eedd;--field:#2a2a2a;--blue:#8aa4ff;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:500 15px/1.45 var(--font);overflow-x:hidden}
+button,select,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+a{color:inherit}
+h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:900;line-height:1.05;letter-spacing:-.02em;text-transform:uppercase}
+:focus-visible{outline:4px solid var(--blue);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{opacity:.7}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em}
+
+/* Header */
+.bar{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 24px;background:var(--bg);border-bottom:4px solid var(--ink)}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none}
+.brand i{width:40px;height:40px;background:var(--accent);border:3px solid var(--ink);display:grid;place-items:center;color:var(--on-accent);box-shadow:3px 3px 0 var(--ink);transform:rotate(-6deg);font:900 1.1rem var(--font-display);font-style:normal}
+.brand b{font:900 1.25rem var(--font-display);letter-spacing:-.03em;text-transform:uppercase}
+.brand small{display:block;font-weight:800;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;min-height:44px;background:var(--accent);color:var(--on-accent);border:var(--border);border-radius:var(--r);box-shadow:var(--shadow-sm);
+  font-weight:900;text-transform:uppercase;font-size:.8rem;letter-spacing:.02em;text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--ink)}
+.btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.btn.white{background:var(--surface);color:var(--ink)}
+.btn:disabled{opacity:.6;cursor:progress;transform:none}
+.sel{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 10px 0 12px;border:var(--border);border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow-sm);font-weight:900;text-transform:uppercase;font-size:.75rem}
+.sel select{background:var(--field);border:2px solid var(--ink);border-radius:4px;padding:6px 8px;font-weight:800;min-height:32px}
+
+/* Layout */
+.wrap{max-width:1180px;margin:0 auto;padding:24px 24px 60px}
+.grid{display:grid;gap:18px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.two{grid-template-columns:repeat(auto-fit,minmax(340px,1fr));align-items:start}
+.sec{margin-top:28px}
+.sec>h2{font-size:1.2rem;display:inline-block;border-bottom:6px solid var(--accent);padding-bottom:2px;margin-bottom:16px}
+.card{background:var(--surface);border:var(--border);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;min-width:0}
+.card h3{font-size:.8rem;letter-spacing:.06em;opacity:.8;margin-bottom:10px}
+
+/* Banner */
+.banner{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:20px 22px;border:var(--border);border-radius:var(--r);box-shadow:var(--shadow);background:var(--accent);color:var(--on-accent)}
+.banner.ok{background:var(--ok)}.banner.warn{background:var(--warn)}.banner.bad{background:var(--bad)}
+.banner .pulse{width:22px;height:22px;border:3px solid var(--on-accent);border-radius:50%;background:var(--on-accent);flex:none}
+.banner.ok .pulse{animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(23,23,23,.5)}70%{box-shadow:0 0 0 12px rgba(23,23,23,0)}100%{box-shadow:0 0 0 0 rgba(23,23,23,0)}}
+.banner h1{font-size:clamp(1.4rem,4vw,2.2rem)}
+.banner p{margin:4px 0 0;font-weight:700}
+.banner .when{margin-left:auto;font-weight:800;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;text-align:right}
+
+/* KPI */
+.kpi .v{font:900 clamp(1.6rem,3.4vw,2.2rem)/1.05 var(--font-display);letter-spacing:-.02em;word-break:break-word}
+.kpi .s{margin-top:8px;font-size:.85rem;font-weight:700;opacity:.8}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:2px solid var(--ink);border-radius:99px;font-weight:900;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;background:var(--surface);color:var(--ink)}
+.badge::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--ink)}
+.badge.ok{background:var(--ok);color:#171717;border-color:#171717}.badge.ok::before{background:#171717}
+.badge.warn{background:var(--warn);color:#171717;border-color:#171717}.badge.warn::before{background:#171717}
+.badge.bad{background:var(--bad);color:#171717;border-color:#171717}.badge.bad::before{background:#171717}
+.kpi .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.kpi .top h3{margin:0}
+
+/* Chart */
+.chart{border:var(--border);border-radius:var(--r);background:var(--field);padding:8px}
+.chart svg{display:block;width:100%;height:170px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:12px;font-weight:800;font-size:.8rem}
+.legend span b{font-family:var(--font-display);font-size:1rem;margin-left:4px}
+
+/* Tables / lists */
+.tbl-wrap{overflow-x:auto;margin:0 -4px;padding:0 4px}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{text-align:left;padding:9px 10px;border-bottom:2px solid color-mix(in srgb,var(--ink) 25%,transparent);vertical-align:top}
+th{font-family:var(--font-display);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+td:last-child,th:last-child{text-align:right}
+.kv{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:9px 16px;margin:0;font-size:.9rem}
+.kv dt{font-weight:800;opacity:.75}
+.kv dd{margin:0;font-weight:700;min-width:0;word-break:break-word}
+.meter{height:14px;border:2px solid var(--ink);border-radius:99px;background:var(--field);overflow:hidden;margin-top:5px}
+.meter i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+.bars{display:grid;gap:9px}
+.bar-row{display:grid;grid-template-columns:96px 1fr auto;gap:10px;align-items:center;font-weight:800;font-size:.82rem}
+.bar-row .meter{margin:0}
+.log{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
+.log li{display:flex;gap:10px;align-items:baseline;padding:8px 2px;border-bottom:2px dashed color-mix(in srgb,var(--ink) 25%,transparent);font-size:.88rem;font-weight:600}
+.log time{font-weight:800;font-size:.75rem;opacity:.7;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--ink);flex:none;background:var(--c-blue);align-self:center}
+.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}
+.note{margin-top:14px;padding:12px 14px;border:var(--border);border-left-width:10px;border-radius:var(--r);background:var(--surface);font-weight:700;font-size:.88rem}
+.note.hide,.hide{display:none}
+.tok{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.tok input{flex:1 1 200px;min-height:44px;padding:8px 12px;border:var(--border);border-radius:var(--r);background:var(--field);font-weight:700}
+.head-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.head-row h3{margin:0}
+footer{margin-top:34px;font-size:.8rem;font-weight:700;opacity:.7}
+
+@media (max-width:640px){
+  .bar{position:static;padding:10px 14px}.wrap{padding:16px 14px 50px}
+  .banner .when{margin-left:0;text-align:left}
+  .two{grid-template-columns:minmax(0,1fr)}
+  .tools .btn,.tools .sel{flex:1 1 auto}
+  .bar-row{grid-template-columns:78px 1fr auto}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<script>
+/* Ikuti tema aplikasi (disimpan index.html di localStorage: ym_accent, ym_mode). Hanya dibaca, tidak diubah. */
+(function(){var a,m,r=document.documentElement;try{a=JSON.parse(localStorage.getItem('ym_accent'));m=JSON.parse(localStorage.getItem('ym_mode'))}catch(e){}
+if(['yellow','blue','green','purple','pink'].indexOf(a)<0)a='yellow';r.setAttribute('data-accent',a);r.setAttribute('data-mode',m==='dark'?'dark':'light')})();
+</script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/" aria-label="Back to YudaMusic"><i>♪</i><span><b>YudaMusic</b><small>Dashboard</small></span></a>
+  <div class="tools">
+    <label class="sel">Auto refresh
+      <select id="interval" aria-label="Auto refresh interval">
+        <option value="0">Off</option><option value="5">5 s</option><option value="10" selected>10 s</option><option value="30">30 s</option><option value="60">60 s</option>
+      </select>
+    </label>
+    <button class="btn white" id="refresh" type="button">Refresh now</button>
+    <a class="btn" href="/">Open app</a>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <section id="overall" class="banner" role="status" aria-live="polite">
+    <span class="pulse" aria-hidden="true"></span>
+    <div><h1 id="ovTitle">Checking…</h1><p id="ovText">Contacting the server.</p></div>
+    <div class="when">Last update<br><span id="lastUpdate">—</span></div>
+  </section>
+
+  <section class="grid kpis sec" aria-label="Key metrics" style="margin-top:22px">
+    <article class="card kpi">
+      <div class="top"><h3>API server</h3><span class="badge" id="bHealth">…</span></div>
+      <div class="v" id="vHealth">—</div>
+      <div class="s" id="sHealth">GET /api/health</div>
+    </article>
+    <article class="card kpi">
+      <div class="top"><h3>Search source</h3><span class="badge" id="bSearch">…</span></div>
+      <div class="v" id="vSearch">—</div>
+      <div class="s" id="sSearch">Not tested yet</div>
+    </article>
+    <article class="card kpi">
+      <div class="top"><h3>Server uptime</h3><span class="badge" id="bUp">…</span></div>
+      <div class="v" id="vUp">—</div>
+      <div class="s" id="sUp">—</div>
+    </article>
+    <article class="card kpi">
+      <div class="top"><h3>Requests served</h3></div>
+      <div class="v" id="vReq">—</div>
+      <div class="s" id="sReq">—</div>
+    </article>
+  </section>
+
+  <section class="sec" aria-labelledby="hLat">
+    <h2 id="hLat">Response time</h2>
+    <div class="card">
+      <div class="chart"><svg id="chart" viewBox="0 0 600 170" preserveAspectRatio="none" role="img" aria-label="Health check response time history"></svg></div>
+      <div class="legend">
+        <span>Now<b id="lNow">—</b></span><span>Average<b id="lAvg">—</b></span><span>Min<b id="lMin">—</b></span><span>Max<b id="lMax">—</b></span>
+        <span>Seen up<b id="lAvail">—</b></span><span>Checks<b id="lN">0</b></span>
+      </div>
+      <p class="muted" style="margin:12px 0 0;font-size:.8rem;font-weight:700">Measured from this browser to the server's /api/health. Red marks are failed checks. History is kept in this browser only.</p>
+    </div>
+  </section>
+
+  <section class="sec grid two" aria-label="Server details">
+    <article class="card" id="cStats">
+      <div class="head-row"><h3>Server stats</h3><span class="badge" id="bStats">…</span></div>
+      <div id="statsBody"><p class="muted">Loading…</p></div>
+      <div id="tokBox" class="hide">
+        <div class="note" style="border-left-color:var(--warn)">This server protects its stats. Enter the STATS_TOKEN to view them.</div>
+        <form class="tok" id="tokForm"><input id="tokIn" type="password" autocomplete="off" placeholder="Stats token" aria-label="Stats token"><button class="btn" type="submit">Unlock</button></form>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="head-row"><h3>Endpoint checks</h3><button class="btn" id="runChecks" type="button">Run all checks</button></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Check</th><th>Got</th><th>Result</th></tr></thead>
+        <tbody id="chkBody"><tr><td colspan="3" class="muted">Press “Run all checks”.</td></tr></tbody>
+      </table></div>
+      <p class="muted" style="margin:12px 0 0;font-size:.8rem;font-weight:700">The search check sends one real query through the server, so it also tests the connection to the music source.</p>
+      <div class="head-row" style="margin-top:20px"><h3>Search source test</h3><button class="btn white" id="probeBtn" type="button">Test now</button></div>
+      <div id="probeBody" class="muted" style="font-weight:700">Runs once on load, then every 2 minutes while auto refresh is on.</div>
+    </article>
+  </section>
+
+  <section class="sec grid two" aria-label="Traffic and events">
+    <article class="card">
+      <h3>Traffic</h3>
+      <div id="trafficBody"><p class="muted">Waiting for server stats…</p></div>
+    </article>
+    <article class="card">
+      <div class="head-row"><h3>Event log</h3><button class="btn white" id="clearLog" type="button">Clear</button></div>
+      <ul class="log" id="log"></ul>
+    </article>
+  </section>
+
+  <footer id="foot">Dashboard reads /api/health and /api/stats. It does not store personal data.</footer>
+</main>
+
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LS={
+  get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+const MAXH=120,MAXE=40;
+let H=LS.get('ymd_hist',[]).filter(x=>x&&typeof x.t==='number'&&typeof x.ms==='number').slice(-MAXH);
+let EV=LS.get('ymd_ev',[]).filter(x=>x&&x.t&&x.m).slice(-MAXE);
+let S={health:null,stats:null,statsErr:null,probe:null,upBase:null,timer:null,probeTimer:null,busy:false,lastProbeAt:0};
+
+/* ---------- format ---------- */
+const pad=n=>String(n).padStart(2,'0');
+const fmtTime=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())};
+const fmtDateTime=t=>new Date(t).toLocaleString();
+const fmtMs=n=>n==null?'—':n>=1000?(n/1000).toFixed(2)+' s':Math.round(n)+' ms';
+const fmtNum=n=>n==null?'—':Number(n).toLocaleString();
+const fmtBytes=n=>{if(n==null)return '—';const u=['B','KB','MB','GB'];let i=0,x=n;while(x>=1024&&i<3){x/=1024;i++}return x.toFixed(i?1:0)+' '+u[i]};
+function fmtDur(ms){
+  let s=Math.max(0,Math.floor(ms/1000));const d=Math.floor(s/86400);s%=86400;const h=Math.floor(s/3600);s%=3600;const m=Math.floor(s/60);s%=60;
+  return (d?d+'d ':'')+(d||h?h+'h ':'')+(d||h||m?m+'m ':'')+s+'s';
+}
+const ago=t=>{const s=Math.max(0,Math.round((Date.now()-t)/1000));return s<60?s+'s ago':s<3600?Math.floor(s/60)+'m ago':Math.floor(s/3600)+'h ago'};
+
+/* ---------- network ---------- */
+async function req(url,opt){
+  const o=opt||{},ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),o.timeout||8000),t0=performance.now();
+  try{
+    const r=await fetch(url,{cache:'no-store',headers:o.headers||{},signal:ctl.signal});
+    const ms=performance.now()-t0;let json=null,text='';
+    const ct=r.headers.get('content-type')||'';
+    if(ct.includes('json')){try{json=await r.json()}catch(e){}}
+    else{try{text=await r.text()}catch(e){}}
+    return {ok:r.ok,code:r.status,ms,json,text};
+  }catch(e){
+    return {ok:false,code:0,ms:performance.now()-t0,json:null,err:e&&e.name==='AbortError'?'timeout':'network error'};
+  }finally{clearTimeout(to)}
+}
+const token=()=>{try{return sessionStorage.getItem('ymd_token')||''}catch(e){return ''}};
+
+/* ---------- log ---------- */
+function logEv(type,m){EV.push({t:Date.now(),type,m});EV=EV.slice(-MAXE);LS.set('ymd_ev',EV);renderLog()}
+function renderLog(){
+  const el=$('#log');
+  el.innerHTML=EV.length?EV.slice().reverse().map(e=>'<li><span class="dot '+esc(e.type)+'" aria-hidden="true"></span><time>'+esc(fmtTime(e.t))+'</time><span>'+esc(e.m)+'</span></li>').join(''):'<li class="muted">No events yet.</li>';
+}
+
+/* ---------- checks ---------- */
+async function checkHealth(){
+  const r=await req('/api/health?_='+Date.now());
+  const ok=r.ok&&r.json&&r.json.status===true;
+  const prev=S.health;
+  S.health={ok,ms:r.ms,code:r.code,err:r.err,t:Date.now()};
+  H.push({t:Date.now(),ok,ms:Math.round(r.ms)});H=H.slice(-MAXH);LS.set('ymd_hist',H);
+  if(!prev)logEv(ok?'ok':'bad',ok?'Dashboard opened. API is up.':'Dashboard opened. API is unreachable'+(r.err?' ('+r.err+')':' (HTTP '+r.code+')')+'.');
+  else if(prev.ok&&!ok)logEv('bad','API went down'+(r.err?' ('+r.err+')':' (HTTP '+r.code+')')+'.');
+  else if(!prev.ok&&ok)logEv('ok','API is back up.');
+}
+async function loadStats(){
+  const h={};const tk=token();if(tk)h['x-stats-token']=tk;
+  const r=await req('/api/stats',{headers:h});
+  S.statsErr=null;
+  if(r.ok&&r.json&&r.json.status){
+    S.stats=r.json;S.upBase={ms:r.json.uptimeMs,at:performance.now()};
+    if(S.lastStartedAt&&r.json.startedAt!==S.lastStartedAt)logEv('warn','Server restarted. Uptime and counters were reset.');
+    S.lastStartedAt=r.json.startedAt;
+  }else{
+    S.stats=null;S.upBase=null;
+    S.statsErr=r.code===401?'locked':r.code===404?'missing':r.code===0?'offline':'error';
+  }
+}
+async function probeSearch(){
+  const b=$('#probeBtn');b.disabled=true;b.textContent='Testing…';
+  const q='status check '+Math.random().toString(36).slice(2,7);
+  const r=await req('/api/search?type=songs&limit=1&q='+encodeURIComponent(q),{timeout:15000});
+  const prev=S.probe;
+  const okp=r.ok&&r.json&&r.json.status===true;
+  S.probe={ok:okp,code:r.code,ms:Math.round(r.ms),count:r.json&&r.json.count,cached:r.json&&r.json.cached,msg:(r.json&&r.json.message)||r.err||'',t:Date.now()};
+  S.lastProbeAt=Date.now();
+  if(!prev||prev.ok!==okp)logEv(okp?'ok':(r.code===429?'warn':'bad'),okp?'Search source test passed ('+S.probe.ms+' ms).':'Search source test failed (HTTP '+r.code+(S.probe.msg?': '+S.probe.msg:'')+').');
+  b.disabled=false;b.textContent='Test now';
+}
+
+/* ---------- render ---------- */
+function setBadge(id,cls,txt){const e=$(id);e.className='badge '+cls;e.textContent=txt}
+
+function status(){
+  const h=S.health,p=S.probe;
+  if(!h)return {cls:'',t:'Checking…',x:'Contacting the server.'};
+  if(!h.ok)return {cls:'bad',t:'Server unreachable',x:h.err?('The API did not respond ('+h.err+').'):('The API answered with HTTP '+h.code+'.')};
+  if(p&&!p.ok){
+    if(p.code===429)return {cls:'warn',t:'Rate limited',x:'The server is temporarily limiting requests. It should recover within a minute.'};
+    return {cls:'warn',t:'Degraded: search is failing',x:'The server is up, but the music source did not answer'+(p.msg?': '+p.msg:'')+'. Some hosts are blocked by the source; this is not a dashboard problem.'};
+  }
+  if(!p)return {cls:'ok',t:'API is up',x:'Search source has not been tested yet.'};
+  return {cls:'ok',t:'All systems operational',x:'API and search source both answered normally.'};
+}
+
+function renderTop(){
+  const st=status(),b=$('#overall');
+  b.className='banner '+st.cls;$('#ovTitle').textContent=st.t;$('#ovText').textContent=st.x;
+  $('#lastUpdate').textContent=S.health?fmtTime(S.health.t):'—';
+
+  const h=S.health;
+  if(h){
+    setBadge('#bHealth',h.ok?'ok':'bad',h.ok?'Up':'Down');
+    $('#vHealth').textContent=h.ok?fmtMs(h.ms):'No response';
+    $('#sHealth').textContent=h.ok?'GET /api/health · HTTP '+h.code:(h.err?h.err:'HTTP '+h.code);
+  }
+  const p=S.probe;
+  if(p){
+    setBadge('#bSearch',p.ok?'ok':(p.code===429?'warn':'bad'),p.ok?'OK':(p.code===429?'Limited':'Failing'));
+    $('#vSearch').textContent=p.ok?fmtMs(p.ms):'HTTP '+(p.code||'—');
+    $('#sSearch').textContent=(p.ok?(p.cached?'Served from cache · ':'Live result · ')+fmtMs(p.ms):(p.msg||'Failed'))+' · tested '+ago(p.t);
+  }
+  const s=S.stats;
+  if(s){
+    setBadge('#bUp','ok','Running');
+    $('#sUp').textContent='Since '+fmtDateTime(s.startedAt);
+    const t=s.requests.total,mins=Math.max(1,s.uptimeMs/60000);
+    $('#vReq').textContent=fmtNum(t);
+    $('#sReq').textContent='≈ '+(t/mins).toFixed(1)+' per minute since start';
+  }else{
+    setBadge('#bUp',S.statsErr==='locked'?'warn':'','n/a');
+    $('#vUp').textContent='—';
+    $('#sUp').textContent=S.statsErr==='locked'?'Stats are locked':S.statsErr==='missing'?'Server has no /api/stats':'Not available';
+    $('#vReq').textContent='—';$('#sReq').textContent='Not available';
+  }
+  tickUptime();
+}
+function tickUptime(){
+  if(S.upBase)$('#vUp').textContent=fmtDur(S.upBase.ms+(performance.now()-S.upBase.at));
+}
+
+function renderChart(){
+  const pts=H.slice(-60),W=600,Hh=170,padX=8,padY=14,svg=$('#chart');
+  const okp=pts.filter(x=>x.ok);
+  if(!pts.length){svg.innerHTML='';return}
+  const max=Math.max(60,...okp.map(x=>x.ms))*1.15,n=pts.length;
+  const X=i=>n===1?W/2:padX+i*(W-2*padX)/(n-1),Y=ms=>Hh-padY-(ms/max)*(Hh-2*padY);
+  let line='',area='',started=false,last=null,marks='';
+  pts.forEach((x,i)=>{
+    if(!x.ok){marks+='<line x1="'+X(i)+'" y1="'+(Hh-6)+'" x2="'+X(i)+'" y2="'+(Hh-padY-26)+'" stroke="#ff5a4e" stroke-width="5"/>';started=false;return}
+    line+=(started?'L':'M')+X(i).toFixed(1)+' '+Y(x.ms).toFixed(1)+' ';started=true;last=i;
+  });
+  let grid='';[0.25,0.5,0.75].forEach(f=>{const y=(padY+(Hh-2*padY)*f).toFixed(1);grid+='<line x1="0" x2="'+W+'" y1="'+y+'" y2="'+y+'" stroke="currentColor" stroke-opacity=".15" stroke-width="1" stroke-dasharray="4 4"/>'});
+  const dots=pts.map((x,i)=>x.ok?'<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(x.ms).toFixed(1)+'" r="'+(n>40?2.5:4)+'" fill="var(--accent)" stroke="currentColor" stroke-width="2"/>':'').join('');
+  svg.style.color='var(--ink)';
+  svg.innerHTML=grid+(line?'<path d="'+line+'" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>':'')+marks+dots;
+
+  const all=H.filter(x=>x.ok).map(x=>x.ms);
+  $('#lNow').textContent=S.health&&S.health.ok?fmtMs(S.health.ms):'—';
+  $('#lAvg').textContent=all.length?fmtMs(all.reduce((a,b)=>a+b,0)/all.length):'—';
+  $('#lMin').textContent=all.length?fmtMs(Math.min(...all)):'—';
+  $('#lMax').textContent=all.length?fmtMs(Math.max(...all)):'—';
+  $('#lAvail').textContent=H.length?((H.filter(x=>x.ok).length/H.length)*100).toFixed(1)+'%':'—';
+  $('#lN').textContent=H.length;
+}
+
+function meter(pct){return '<div class="meter" role="img" aria-label="'+Math.round(pct)+' percent"><i style="width:'+Math.max(0,Math.min(100,pct)).toFixed(1)+'%"></i></div>'}
+
+function renderStats(){
+  const box=$('#statsBody'),tok=$('#tokBox'),s=S.stats;
+  tok.classList.toggle('hide',S.statsErr!=='locked');
+  if(!s){
+    setBadge('#bStats',S.statsErr==='locked'?'warn':'bad',S.statsErr==='locked'?'Locked':'Unavailable');
+    box.innerHTML=S.statsErr==='locked'?'':S.statsErr==='missing'?'<p>This server does not provide <span class="mono">/api/stats</span>. Update <span class="mono">server.js</span> to the version that includes it.</p>':'<p class="muted">Server stats are not available right now.</p>';
+    $('#trafficBody').innerHTML='<p class="muted">Waiting for server stats…</p>';
+    return;
+  }
+  setBadge('#bStats','ok','Live');
+  const m=s.memory,c=s.cache,r=s.rateLimit,q=s.search;
+  const heapPct=m.heapTotal?m.heapUsed/m.heapTotal*100:0,cachePct=c.max?c.size/c.max*100:0;
+  box.innerHTML='<dl class="kv">'+
+    '<dt>Runtime</dt><dd>Node '+esc(s.runtime.node)+' · '+esc(s.runtime.platform)+'</dd>'+
+    '<dt>Stats access</dt><dd>'+(s.runtime.protected?'Protected by token':'Open (set STATS_TOKEN to protect)')+'</dd>'+
+    '<dt>Memory</dt><dd>'+fmtBytes(m.rss)+' RSS · heap '+fmtBytes(m.heapUsed)+' / '+fmtBytes(m.heapTotal)+meter(heapPct)+'</dd>'+
+    '<dt>Search source</dt><dd>'+fmtNum(q.ok)+' ok · '+fmtNum(q.failed)+' failed · avg '+fmtMs(q.avgMs)+' · p95 '+fmtMs(q.p95Ms)+'</dd>'+
+    '<dt>Last source error</dt><dd>'+(q.lastError?esc(q.lastError.message)+' <span class="muted">('+esc(ago(q.lastError.time))+')</span>':'None since start')+'</dd>'+
+    '<dt>Cache</dt><dd>'+fmtNum(c.size)+' / '+fmtNum(c.max)+' entries · hit rate '+(c.hitRate==null?'—':(c.hitRate*100).toFixed(0)+'%')+' · TTL '+Math.round(c.ttlSeconds/60)+' min'+meter(cachePct)+'</dd>'+
+    '<dt>Rate limit</dt><dd>'+fmtNum(r.limitPerMinute)+' / min per client · '+fmtNum(r.blocked)+' blocked · '+fmtNum(r.trackedClients)+' tracked</dd>'+
+  '</dl>'+
+  (/vercel|serverless/i.test(s.runtime.platform)?'<div class="note" style="border-left-color:var(--warn)">Serverless host: uptime and counters belong to the current instance and reset when it restarts or sleeps. A low uptime is normal here.</div>':'');
+
+  const tot=Math.max(1,s.requests.total),rt=s.requests.byRoute,st=s.requests.byStatus;
+  const names={'/':'Frontend','/dashboard':'Dashboard','/api/health':'Health','/api/stats':'Stats','/api/search':'Search','other':'Other'};
+  const row=(label,n,cls)=>'<div class="bar-row"><span>'+esc(label)+'</span><div class="meter"><i style="width:'+(n/tot*100).toFixed(1)+'%;'+(cls?'background:'+cls:'')+'"></i></div><span>'+fmtNum(n)+'</span></div>';
+  $('#trafficBody').innerHTML='<p class="muted" style="margin:0 0 10px;font-weight:700;font-size:.8rem">By route</p><div class="bars">'+
+    Object.keys(names).map(k=>row(names[k],rt[k]||0)).join('')+'</div>'+
+    '<p class="muted" style="margin:18px 0 10px;font-weight:700;font-size:.8rem">By response</p><div class="bars">'+
+    row('2xx success',st['2xx']||0,'var(--ok)')+row('3xx redirect',st['3xx']||0,'var(--c-blue)')+row('4xx client',st['4xx']||0,'var(--warn)')+row('5xx server',st['5xx']||0,'var(--bad)')+'</div>'+
+    '<p class="muted" style="margin:14px 0 0;font-size:.8rem;font-weight:700">Includes this dashboard\'s own checks. Counted since the server started.</p>';
+}
+
+function renderProbe(){
+  const p=S.probe,el=$('#probeBody');
+  if(!p){return}
+  el.className='';
+  el.innerHTML='<dl class="kv"><dt>Result</dt><dd><span class="badge '+(p.ok?'ok':(p.code===429?'warn':'bad'))+'">'+(p.ok?'Passed':'Failed')+'</span></dd>'+
+    '<dt>HTTP</dt><dd>'+(p.code||'no response')+'</dd><dt>Time</dt><dd>'+fmtMs(p.ms)+'</dd>'+
+    (p.ok?'<dt>Items</dt><dd>'+fmtNum(p.count)+(p.cached?' (from server cache)':'')+'</dd>':'<dt>Message</dt><dd>'+esc(p.msg||'—')+'</dd>')+
+    '<dt>Tested</dt><dd>'+esc(fmtDateTime(p.t))+'</dd></dl>';
+}
+function renderAll(){renderTop();renderChart();renderStats();renderProbe()}
+
+/* ---------- endpoint checks ---------- */
+async function runChecks(){
+  const btn=$('#runChecks');btn.disabled=true;btn.textContent='Running…';
+  const tk=token(),sh=tk?{'x-stats-token':tk}:{};
+  const rand='checks '+Math.random().toString(36).slice(2,7);
+  const defs=[
+    {n:'Frontend page',u:'/',exp:200},
+    {n:'Health',u:'/api/health',exp:200,j:j=>j.status===true},
+    {n:'Stats',u:'/api/stats',exp:200,h:sh,j:j=>j.status===true},
+    {n:'Search (live)',u:'/api/search?type=songs&limit=1&q='+encodeURIComponent(rand),exp:200,j:j=>j.status===true,t:15000},
+    {n:'Input validation',u:'/api/search?q=a',exp:400},
+    {n:'Unknown route',u:'/api/does-not-exist',exp:404}
+  ];
+  const rows=[];
+  for(const d of defs){
+    const r=await req(d.u,{headers:d.h,timeout:d.t||8000});
+    let pass=r.code===d.exp;if(pass&&d.j)pass=!!(r.json&&d.j(r.json));
+    if(d.n==='Stats'&&r.code===401)pass=false;
+    rows.push('<tr><td>'+esc(d.n)+'<div class="muted mono">'+esc(d.u.split('?')[0])+' · expects '+d.exp+'</div></td><td>'+(r.code||esc(r.err||'—'))+'<div class="muted">'+fmtMs(r.ms)+'</div></td><td><span class="badge '+(pass?'ok':'bad')+'">'+(pass?'Pass':'Fail')+'</span></td></tr>');
+    $('#chkBody').innerHTML=rows.join('');
+  }
+  const fails=rows.filter(r=>r.includes('badge bad')).length;
+  logEv(fails?'bad':'ok','Endpoint checks: '+(defs.length-fails)+'/'+defs.length+' passed.');
+  btn.disabled=false;btn.textContent='Run all checks';
+}
+
+/* ---------- loop ---------- */
+async function cycle(manual){
+  if(S.busy)return;if(!manual&&document.hidden)return;
+  S.busy=true;
+  try{await Promise.all([checkHealth(),loadStats()]);renderAll()}finally{S.busy=false}
+}
+function setTimer(){
+  clearInterval(S.timer);clearInterval(S.probeTimer);
+  const sec=Number($('#interval').value)||0;LS.set('ymd_int',sec);
+  if(sec){
+    S.timer=setInterval(()=>cycle(false),sec*1000);
+    S.probeTimer=setInterval(()=>{if(!document.hidden)probeSearch().then(renderAll)},120000);
+  }
+}
+
+/* ---------- init ---------- */
+$('#interval').value=String(LS.get('ymd_int',10));if($('#interval').value==='')$('#interval').value='10';
+$('#interval').addEventListener('change',setTimer);
+$('#refresh').addEventListener('click',()=>cycle(true));
+$('#runChecks').addEventListener('click',runChecks);
+$('#probeBtn').addEventListener('click',async()=>{await probeSearch();renderAll()});
+$('#clearLog').addEventListener('click',()=>{EV=[];LS.set('ymd_ev',EV);renderLog()});
+$('#tokForm').addEventListener('submit',e=>{e.preventDefault();const v=$('#tokIn').value.trim();try{sessionStorage.setItem('ymd_token',v)}catch(_){}$('#tokIn').value='';cycle(true)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)cycle(true)});
+setInterval(tickUptime,1000);
+renderLog();renderChart();renderProbe();
+cycle(true).then(()=>probeSearch()).then(renderAll);
+setTimer();
+})();
+</script>
+</body>
+</html>

@@ -760,14 +760,59 @@ const QUICK=['Pop','Rock','Hip-Hop','Electronic','Anime','Lo-Fi','J-Pop','K-Pop'
 
 function viewHome(){
   const rec=S.recentlyPlayed.filter(x=>TR[x]).slice(0,12),liked=S.likedTracks.filter(x=>TR[x]);
-  let h='<div class="hero"><div class="hero-main"><h1>YOUR MUSIC. <span>YOUR RULES.</span></h1><p>Discover music, explore artists and albums, and enjoy your favorite tracks. Your liked songs and playlists are saved in this browser.</p>'+
+  const hero='<div class="hero"><div class="hero-main"><h1>YOUR MUSIC. <span>YOUR RULES.</span></h1><p>Discover music, explore artists and albums, and enjoy your favorite tracks. Your liked songs and playlists are saved in this browser.</p>'+
     '<div class="actions" style="margin:0"><button class="btn red" data-act="nav" data-href="#/explore">Explore Music</button><button class="btn white" data-act="gosearch">Search Songs</button></div></div>'+
     '<div class="hero-side"><div class="vinyl" aria-hidden="true"></div><h2>How it works</h2><p>Search for your favorite music and discover songs, albums, artists, and more.</p></div></div>';
+  // Pengguna yang sudah punya data: chip mood + rekomendasi di atas (seperti YouTube Music). Pengguna baru: hero dulu.
+  const picks='<div class="chips" role="group" aria-label="Moods">'+MOODS.map(m=>'<button class="chip" data-act="mood" data-q="'+esc(m[1])+'">'+esc(m[0])+'</button>').join('')+'</div><div id="recoBody"></div>',returning=tasteProfile().artists.length>0||S.searchHistory.length>0;
+  let h=returning?picks+hero:hero+picks;
   h+=section('Recently Played',rec.length?(()=>{const c=reg(rec);return '<div class="hscroll">'+rec.map((id,i)=>trackCard(TR[id],c,i)).join('')+'</div>'})():empty('Nothing played yet','Search for a song and play it. It will show up here.','<button class="btn" data-act="gosearch">Search songs</button>'),rec.length?'#/history':'');
   h+=section('Liked Songs',liked.length?rowsHTML(liked.slice(0,5)):empty('No liked songs','Tap the heart on any song.'),liked.length>5?'#/liked':'');
   h+=section('Your Playlists',S.playlists.length?'<div class="hscroll">'+S.playlists.map(plCard).join('')+'</div>':empty('No playlists yet','Create one and add songs from search results.','<button class="btn" data-act="newpl">'+ico('plus')+'Create playlist</button>'),S.playlists.length?'#/playlists':'');
   h+=section('Try Searching','<p style="margin:0 0 12px;font-weight:700">Shortcuts that run a real search. These are not YouTube Music recommendations.</p><div class="hist">'+QUICK.slice(0,6).map(g=>'<button class="chip" data-act="quick" data-q="'+g+'" data-type="songs">'+g+'</button>').join('')+'</div>');
   return h;
+}
+/* ---------- Rekomendasi Home (lokal) ----------
+   Bukan algoritma YouTube Music. Profil selera dihitung dari data di browser ini (likes, playlist, riwayat putar,
+   riwayat pencarian), lalu kandidat lagu diambil lewat SearchService yang sama dengan pencarian biasa. */
+const MOODS=[['Energize','energetic upbeat songs'],['Relax','relaxing chill music'],['Workout','workout music'],['Commute','driving songs'],['Focus','focus study music']];
+const REC={cache:new Map(),ttl:10*60*1000};
+const primaryArtist=t=>String(t.artistName||'').split(',')[0].trim();
+function tasteProfile(){
+  const sc=new Map(),add=(t,v)=>{if(!t)return;const a=primaryArtist(t);if(!a||/^unknown artist$/i.test(a))return;const k=norm(a),o=sc.get(k)||{name:a,score:0};o.score+=v;sc.set(k,o)};
+  S.likedTracks.forEach(id=>add(TR[id],3));                              // like = sinyal terkuat
+  S.playlists.forEach(p=>p.trackIds.forEach(id=>add(TR[id],2)));         // masuk playlist
+  S.recentlyPlayed.forEach((id,i)=>add(TR[id],2*(1-i/60)));              // putaran terbaru berbobot lebih besar
+  const artists=[...sc.values()].sort((a,b)=>b.score-a.score).slice(0,3),seen=new Set(artists.map(a=>norm(a.name)));
+  return {artists,queries:S.searchHistory.filter(q=>!seen.has(norm(q))).slice(0,1)};
+}
+async function recFetch(q,type){
+  const key=type+'|'+norm(q),c=REC.cache.get(key);if(c&&Date.now()-c.t<REC.ttl)return c.v;
+  const v=(await fetchEntities(q,type)).map(x=>x.id);REC.cache.set(key,{t:Date.now(),v});return v;
+}
+async function loadReco(){
+  const box=$('#recoBody');if(!box)return;const token=routeToken,P=tasteProfile();
+  const set=html=>{if(token===routeToken&&$('#recoBody'))$('#recoBody').innerHTML=html;markPlaying()};
+  if(!P.artists.length&&!P.queries.length){set('<section class="section">'+empty('Your picks will appear here','Like or play songs, or run a few searches, and YudaMusic will build recommendations from them on this device.')+'</section>');return}
+  set('<div class="state" role="status" style="margin-bottom:38px"><div class="spinner"></div><h3>Building your picks…</h3></div>');
+  const jobs=[...P.artists.map(a=>recFetch(a.name,'songs')),P.artists[0]?recFetch(P.artists[0].name,'albums'):Promise.resolve([]),P.queries[0]?recFetch(P.queries[0],'songs'):Promise.resolve([])];
+  const r=await Promise.allSettled(jobs);if(token!==routeToken)return;
+  if(r.every(x=>x.status==='rejected')){const m=r[0].reason&&r[0].reason.message||'Could not load recommendations.';set('<div class="state err" role="alert" style="margin-bottom:38px"><h3>Could not load your picks</h3><p>'+esc(m)+'</p><button class="btn" data-act="retryreco">'+ico('retry')+'Retry</button></div>');return}
+  const ok=x=>x&&x.status==='fulfilled'?x.value:[],n=P.artists.length;
+  const byA=P.artists.map((a,i)=>{const all=ok(r[i]).filter(id=>TR[id]),mine=all.filter(id=>norm(TR[id].artistName).includes(norm(a.name)));return mine.length?mine:all});
+  const albums=ok(r[n]).filter(id=>ENT[id]),qSongs=ok(r[n+1]).filter(id=>TR[id]);
+  const used=new Set(S.recentlyPlayed.slice(0,12)),quick=[];
+  for(let k=0;k<10&&quick.length<8;k++)byA.forEach(l=>{const id=l[k];if(id&&!used.has(id)&&quick.length<8){quick.push(id);used.add(id)}});
+  const hs=ids=>{const c=reg(ids);return '<div class="hscroll">'+ids.map((id,i)=>trackCard(TR[id],c,i)).join('')+'</div>'};
+  const fresh=l=>l.filter(id=>!used.has(id)).slice(0,12);
+  let h='';
+  if(quick.length)h+=section('Quick picks',rowsHTML(quick));
+  P.artists.slice(0,2).forEach((a,i)=>{const l=fresh(byA[i]);if(l.length>=3){l.forEach(x=>used.add(x));h+=section('More from '+a.name,hs(l))}});
+  const alb=albums.filter(id=>P.artists[0]&&norm(ENT[id].artistName).includes(norm(P.artists[0].name))).slice(0,10);
+  if(alb.length)h+=section('Albums for you','<div class="hscroll">'+alb.map(id=>entCard(ENT[id])).join('')+'</div>');
+  const ql=fresh(qSongs);if(P.queries[0]&&ql.length>=3)h+=section('Because you searched "'+P.queries[0]+'"',hs(ql));
+  if(!h){set('<section class="section">'+empty('No picks yet','Nothing new came back for your favorite artists. Try playing or liking a few more songs.')+'</section>');return}
+  set(h+'<p class="muted" style="font-weight:700;margin:-14px 0 38px;font-size:.85rem">Picks are built on this device from your likes, playlists, play history and searches. They come from search results, not from a recommendation service.</p>');
 }
 function viewExplore(){
   return '<div class="page-head"><h1>Explore</h1><p>Pick a genre or a type. Each tile runs a real search, nothing is pre-filled.</p></div>'+
@@ -871,13 +916,13 @@ function route(){
   const h=location.hash.replace(/^#\/?/,'')||'home',parts=h.split('/'),page=parts[0];let arg='';try{arg=decodeURIComponent(parts.slice(1).join('/'))}catch(e){}
   CTX.length=0;S.activePage=page;routeToken++;let html,after=null;
   switch(page){
-    case'home':html=viewHome();break;case'explore':html=viewExplore();break;case'search':html=viewSearch();after=()=>{const q=SQ.q.trim();if(q.length>=2&&SQ.type+'|'+norm(q)!==SQ.lastKey)runSearch(false);else renderSearchBody()};break;
+    case'home':html=viewHome();after=loadReco;break;case'explore':html=viewExplore();break;case'search':html=viewSearch();after=()=>{const q=SQ.q.trim();if(q.length>=2&&SQ.type+'|'+norm(q)!==SQ.lastKey)runSearch(false);else renderSearchBody()};break;
     case'artist':html=viewEntity('artist',arg);after=()=>loadEntityPage('artist',arg);break;
     case'album':html=viewEntity('album',arg);after=()=>loadEntityPage('album',arg);break;
     case'ytpl':html=viewEntity('ytpl',arg);after=()=>loadEntityPage('ytpl',arg);break;
     case'playlist':html=viewPlaylist(arg);break;case'library':html=viewLibrary();break;case'liked':html=viewLiked();break;
     case'history':html=viewHistory();break;case'playlists':html=viewPlaylists();break;case'menu':html=viewMenu();break;case'settings':html=viewSettings();break;
-    default:S.activePage='home';html=viewHome();
+    default:S.activePage='home';html=viewHome();after=loadReco;
   }
   $('#main').innerHTML=html;window.scrollTo(0,0);if(after)after();updateNav();markPlaying();
 }
@@ -941,7 +986,7 @@ function paintTheme(){
 function setAccent(v){if(!YM_ACCENTS.includes(v))return;S.accent=v;LS.set('ym_accent',v);ymApplyTheme(S.accent,S.mode);paintTheme()}
 function toggleDark(){S.mode=S.mode==='dark'?'light':'dark';LS.set('ym_mode',S.mode);ymApplyTheme(S.accent,S.mode);paintTheme()}
 // Cache = hasil pencarian sementara. Likes, playlist, saved, history, dan tema TIDAK disentuh.
-function clearCache(){SQ.cache.clear();SQ.lastKey='';try{sessionStorage.removeItem('ym_ent')}catch(e){}toast('Cache deleted')}
+function clearCache(){SQ.cache.clear();REC.cache.clear();SQ.lastKey='';try{sessionStorage.removeItem('ym_ent')}catch(e){}toast('Cache deleted')}
 // History = riwayat pencarian + riwayat pemutaran saja.
 function deleteHistory(){S.searchHistory=[];LS.set('ym_hist',[]);clearRecent()}
 
@@ -960,6 +1005,8 @@ document.addEventListener('click',function(e){
     case'gosearch':location.hash='#/search';$('#q').focus();break;
     case'dosearch':{const q=$('#q').value;SQ.q=q;if(q.trim().length>=2)addHistory(q);if(S.activePage!=='search')location.hash='#/search';else runSearch(true);break}
     case'quick':quickSearch(d.q,d.type);break;
+    case'mood':SQ.q=d.q;SQ.type='songs';$('#q').value=d.q;if(S.activePage!=='search')location.hash='#/search';else runSearch(false);break;
+    case'retryreco':route();break;
     case'settype':SQ.type=d.type;location.hash='#/search';if(S.activePage==='search')renderSearchBody();$('#q').focus();break;
     case'stab':SQ.type=d.type;runSearch(false);break;
     case'histq':$('#q').value=d.q;SQ.q=d.q;runSearch(true);break;
