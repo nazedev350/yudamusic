@@ -12,6 +12,7 @@ const http = require('http')
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
+const soundcloud = require('./soundcloud')
 
 const TYPES = ['songs', 'videos', 'albums', 'playlists', 'artists']
 const CACHE_TTL = 10 * 60 * 1000
@@ -71,7 +72,7 @@ function createServer(searchFn, opts = {}) {
   // Statistik ringan di memori untuk dashboard. Tidak menyimpan IP, query, atau data pengguna.
   const startedAt = Date.now()
   const stats = { requests: 0, byRoute: {}, byStatus: {}, rateLimited: 0, cacheHits: 0, cacheMisses: 0, searchOk: 0, searchFail: 0, searchMs: [], lastError: null }
-  const KNOWN = ['/', '/dashboard', '/api/health', '/api/stats', '/api/search']
+  const KNOWN = ['/', '/dashboard', '/api/health', '/api/stats', '/api/search', '/api/soundcloud/search', '/api/soundcloud/match']
   const statsAllowed = req => {
     const want = process.env.STATS_TOKEN
     if (!want) return true
@@ -124,6 +125,44 @@ function createServer(searchFn, opts = {}) {
       })
     }
     if (u.pathname === '/api/health') return json(res, 200, { status: true, service: 'yudamusic', time: Date.now() })
+
+    // Fallback provider: dipanggil frontend hanya ketika YouTube menolak embed pada sebuah lagu.
+    // Tidak pernah dipanggil untuk pencarian biasa; YouTube Music tetap provider utama.
+    if (u.pathname === '/api/soundcloud/match') {
+      const title = (u.searchParams.get('title') || '').trim().slice(0, 150)
+      const artist = (u.searchParams.get('artist') || '').trim().slice(0, 150)
+      if (!title) return json(res, 400, { status: false, message: 'Missing title' })
+      const key = 'sc|' + title.toLowerCase() + '|' + artist.toLowerCase()
+      const nowT = Date.now()
+      const c = cache.get(key)
+      if (c && nowT - c.t < CACHE_TTL) { stats.cacheHits++; return json(res, 200, { ...c.v, cached: true }) }
+      stats.cacheMisses++
+      try {
+        const match = await soundcloud.findBestMatch(title, artist)
+        const v = { status: true, match: match || null }
+        if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value)
+        cache.set(key, { t: nowT, v })
+        return json(res, 200, { ...v, cached: false })
+      } catch (e) {
+        console.error('[soundcloud match error]', e && e.message)
+        return json(res, 502, { status: false, message: 'SoundCloud fallback failed: ' + String(e && e.message || 'unknown error').slice(0, 160) })
+      }
+    }
+    if (u.pathname === '/api/soundcloud/search') {
+      const q = (u.searchParams.get('q') || '').trim().slice(0, 150)
+      let limit = parseInt(u.searchParams.get('limit') || '10', 10)
+      if (!q || q.length < 2) return json(res, 400, { status: false, message: 'Query must be at least 2 characters.' })
+      if (!Number.isFinite(limit) || limit < 1) limit = 10
+      limit = Math.min(limit, 20)
+      try {
+        const items = await soundcloud.search(q, limit)
+        return json(res, 200, { status: true, query: q, count: items.length, items })
+      } catch (e) {
+        console.error('[soundcloud search error]', e && e.message)
+        return json(res, 502, { status: false, message: 'SoundCloud search failed: ' + String(e && e.message || 'unknown error').slice(0, 160) })
+      }
+    }
+
     if (u.pathname !== '/api/search') return json(res, 404, { status: false, message: 'Not found' })
 
     // rate limit sederhana
